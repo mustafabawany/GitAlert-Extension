@@ -1,6 +1,6 @@
 // GitAlert Background Service Worker
 
-const GITHUB_API = 'https://api.github.com';
+const GITHUB_API = "https://api.github.com";
 const POLL_INTERVAL_MINUTES = 2;
 
 // Track known PR assignments to detect new ones
@@ -9,76 +9,88 @@ const POLL_INTERVAL_MINUTES = 2;
 // Initialize on install
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({
-    token: '',
+    token: "",
     repos: [],
     reminders: [],
-    urgentTags: ['Important', 'Urgent', 'Critical'],
+    urgentTags: ["Important", "Urgent", "Critical"],
     notificationsEnabled: true,
     urgentNotificationsEnabled: true,
     lastFetch: null,
     prData: null,
-    username: '',
-    userAvatarUrl: '',
+    username: "",
+    userAvatarUrl: "",
     knownAssignments: [], // Array of "repo#number" strings
-    lastUrgentNotified: {} // Map of "repo#number" -> timestamp
+    lastUrgentNotified: {}, // Map of "repo#number" -> timestamp
   });
 
   // Set up polling alarm
-  chrome.alarms.create('pollPRs', { periodInMinutes: POLL_INTERVAL_MINUTES });
-  chrome.alarms.create('checkReminders', { periodInMinutes: 1 });
-  chrome.alarms.create('urgentPRReminder', { periodInMinutes: 5 });
+  chrome.alarms.create("pollPRs", { periodInMinutes: POLL_INTERVAL_MINUTES });
+  chrome.alarms.create("checkReminders", { periodInMinutes: 1 });
+  chrome.alarms.create("urgentPRReminder", { periodInMinutes: 5 });
 });
 
 // Handle alarms
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'pollPRs') {
+  if (alarm.name === "pollPRs") {
     await pollPullRequests();
-  } else if (alarm.name === 'checkReminders') {
+  } else if (alarm.name === "checkReminders") {
     await checkScheduledReminders();
-  } else if (alarm.name === 'urgentPRReminder') {
+  } else if (alarm.name === "urgentPRReminder") {
     await checkUrgentPRs();
   }
 });
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type === 'FETCH_PRS') {
-    pollPullRequests().then(data => sendResponse({ success: true, data }))
-      .catch(err => sendResponse({ success: false, error: err.message }));
+  if (msg.type === "FETCH_PRS") {
+    pollPullRequests()
+      .then((data) => sendResponse({ success: true, data }))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
-  if (msg.type === 'GET_DATA') {
-    chrome.storage.local.get(['prData', 'lastFetch', 'username'], (result) => {
+  if (msg.type === "GET_DATA") {
+    chrome.storage.local.get(["prData", "lastFetch", "username"], (result) => {
       sendResponse(result);
     });
     return true;
   }
-  if (msg.type === 'FETCH_REPOS') {
-    getConfig().then(config => {
-      githubFetch('/user/repos?per_page=100&sort=updated', config.token)
-        .then(repos => sendResponse({ success: true, repos }))
-        .catch(err => sendResponse({ success: false, error: err.message }));
+  if (msg.type === "FETCH_REPOS") {
+    getConfig().then((config) => {
+      githubFetch("/user/repos?per_page=100&sort=updated", config.token)
+        .then((repos) => sendResponse({ success: true, repos }))
+        .catch((err) => sendResponse({ success: false, error: err.message }));
     });
     return true;
   }
 });
 
 async function getConfig() {
-  return new Promise(resolve => {
-    chrome.storage.local.get([
-      'token', 'repos', 'reminders', 'urgentTags', 
-      'notificationsEnabled', 'urgentNotificationsEnabled', 
-      'username', 'userAvatarUrl', 'knownAssignments', 'lastUrgentNotified'
-    ], resolve);
+  return new Promise((resolve) => {
+    chrome.storage.local.get(
+      [
+        "token",
+        "repos",
+        "reminders",
+        "urgentTags",
+        "prData",
+        "notificationsEnabled",
+        "urgentNotificationsEnabled",
+        "username",
+        "userAvatarUrl",
+        "knownAssignments",
+        "lastUrgentNotified",
+      ],
+      resolve,
+    );
   });
 }
 
 async function githubFetch(endpoint, token) {
   const res = await fetch(`${GITHUB_API}${endpoint}`, {
     headers: {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/vnd.github.v3+json'
-    }
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github.v3+json",
+    },
   });
   if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
   return res.json();
@@ -86,12 +98,12 @@ async function githubFetch(endpoint, token) {
 
 async function githubGraphQL(query, variables, token) {
   const res = await fetch(`${GITHUB_API}/graphql`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
-    body: JSON.stringify({ query, variables })
+    body: JSON.stringify({ query, variables }),
   });
   if (!res.ok) {
     const errorBody = await res.text();
@@ -111,12 +123,12 @@ async function pollPullRequests() {
 
   if (!username) {
     try {
-      const user = await githubFetch('/user', token);
+      const user = await githubFetch("/user", token);
       username = user.login;
       const userAvatarUrl = user.avatar_url;
       chrome.storage.local.set({ username, userAvatarUrl });
     } catch (e) {
-      console.error('Failed to get user:', e);
+      console.error("Failed to get user:", e);
       return null;
     }
   }
@@ -126,7 +138,12 @@ async function pollPullRequests() {
     myPRsPending: [],
     changesRequested: [],
     allPRs: [],
-    stats: { assignedToReview: 0, myPRsPending: 0, changesRequested: 0, totalOpen: 0 }
+    stats: {
+      assignedToReview: 0,
+      myPRsPending: 0,
+      changesRequested: 0,
+      totalOpen: 0,
+    },
   };
 
   const query = `
@@ -162,13 +179,13 @@ async function pollPullRequests() {
 
   for (const repo of config.repos) {
     try {
-      const [owner, name] = repo.split('/');
+      const [owner, name] = repo.split("/");
       const data = await githubGraphQL(query, { owner, name }, token);
       const prs = data.repository.pullRequests.nodes;
 
       for (const pr of prs) {
         const reviewers = pr.reviewRequests.nodes
-          .map(rn => rn.requestedReviewer?.login)
+          .map((rn) => rn.requestedReviewer?.login)
           .filter(Boolean);
 
         const prInfo = {
@@ -180,8 +197,11 @@ async function pollPullRequests() {
           author: pr.author.login,
           authorAvatar: pr.author.avatarUrl,
           createdAt: pr.createdAt,
-          labels: pr.labels.nodes.map(l => ({ name: l.name, color: l.color })),
-          reviewers: reviewers
+          labels: pr.labels.nodes.map((l) => ({
+            name: l.name,
+            color: l.color,
+          })),
+          reviewers: reviewers,
         };
 
         prData.allPRs.push(prInfo);
@@ -193,15 +213,24 @@ async function pollPullRequests() {
 
           const assignKey = `${repo}#${pr.number}`;
           const knownAssignments = config.knownAssignments || [];
-          if (!knownAssignments.includes(assignKey) && config.notificationsEnabled) {
+          if (
+            !knownAssignments.includes(assignKey) &&
+            config.notificationsEnabled
+          ) {
             knownAssignments.push(assignKey);
             chrome.storage.local.set({ knownAssignments });
-            sendNotification('New PR Review Request', `${pr.author.login} requested your review on:\n${pr.title}`, pr.url);
+            sendNotification(
+              "New PR Review Request",
+              `${pr.author.login} requested your review on:\n${pr.title}`,
+              pr.url,
+            );
           }
 
           if (config.urgentNotificationsEnabled) {
-            const isUrgent = prInfo.labels.some(l => 
-              (config.urgentTags || []).some(tag => l.name.toLowerCase() === tag.toLowerCase())
+            const isUrgent = prInfo.labels.some((l) =>
+              (config.urgentTags || []).some(
+                (tag) => l.name.toLowerCase() === tag.toLowerCase(),
+              ),
             );
             if (isUrgent) prInfo.isUrgent = true;
           }
@@ -216,10 +245,10 @@ async function pollPullRequests() {
         // Changes Requested on my PRs
         if (pr.author.login === username) {
           const latestReviews = {};
-          pr.latestReviews.nodes.forEach(r => {
+          pr.latestReviews.nodes.forEach((r) => {
             latestReviews[r.author.login] = r.state;
           });
-          if (Object.values(latestReviews).includes('CHANGES_REQUESTED')) {
+          if (Object.values(latestReviews).includes("CHANGES_REQUESTED")) {
             prData.changesRequested.push(prInfo);
             prData.stats.changesRequested++;
           }
@@ -234,8 +263,8 @@ async function pollPullRequests() {
   chrome.storage.local.set({ prData, lastFetch: new Date().toISOString() });
 
   const count = prData.stats.assignedToReview;
-  chrome.action.setBadgeText({ text: count > 0 ? String(count) : '' });
-  chrome.action.setBadgeBackgroundColor({ color: '#3fb950' });
+  chrome.action.setBadgeText({ text: count > 0 ? String(count) : "" });
+  chrome.action.setBadgeBackgroundColor({ color: "#3fb950" });
 
   return prData;
 }
@@ -246,14 +275,16 @@ async function checkScheduledReminders() {
   if (!config.prData || config.prData.stats.assignedToReview === 0) return;
 
   const now = new Date();
-  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(
+    now.getMinutes(),
+  ).padStart(2, "0")}`;
 
   for (const reminder of config.reminders) {
     if (reminder === currentTime) {
       sendNotification(
-        '⏰ PR Review Reminder',
+        "⏰ PR Review Reminder",
         `You have ${config.prData.stats.assignedToReview} PR(s) waiting for your review.`,
-        null
+        null,
       );
     }
   }
@@ -268,11 +299,11 @@ async function checkUrgentPRs() {
   const now = Date.now();
   const RE_NOTIFY_INTERVAL = 60 * 60 * 1000; // 1 hour buffer to prevent spam
 
-  const urgentPRs = config.prData.assignedToMe.filter(pr => {
-    const hasUrgentTag = pr.labels.some(l =>
-      (config.urgentTags || []).some(tag =>
-        l.name.toLowerCase() === tag.toLowerCase()
-      )
+  const urgentPRs = config.prData.assignedToMe.filter((pr) => {
+    const hasUrgentTag = pr.labels.some((l) =>
+      (config.urgentTags || []).some(
+        (tag) => l.name.toLowerCase() === tag.toLowerCase(),
+      ),
     );
     return hasUrgentTag;
   });
@@ -285,9 +316,9 @@ async function checkUrgentPRs() {
 
     if (now - lastNotified > RE_NOTIFY_INTERVAL) {
       sendNotification(
-        '🚨 Urgent PR Needs Review!',
+        "🚨 Urgent PR Needs Review!",
         `[${pr.repo}] ${pr.title}\nThis PR has an urgent label and needs your attention.`,
-        pr.url
+        pr.url,
       );
       lastUrgentNotified[prKey] = now;
       updatedNotifications = true;
@@ -300,25 +331,28 @@ async function checkUrgentPRs() {
 }
 
 function sendNotification(title, message, url) {
-  chrome.notifications.create({
-    type: 'basic',
-    iconUrl: 'icon.png',
-    title,
-    message,
-    priority: 2
-  }, (notifId) => {
-    if (url) {
-      chrome.notifications.onClicked.addListener(function handler(clickedId) {
-        if (clickedId === notifId) {
-          chrome.tabs.create({ url });
-          chrome.notifications.onClicked.removeListener(handler);
-        }
-      });
-    }
-  });
+  chrome.notifications.create(
+    {
+      type: "basic",
+      iconUrl: "icon.png",
+      title,
+      message,
+      priority: 2,
+    },
+    (notifId) => {
+      if (url) {
+        chrome.notifications.onClicked.addListener(function handler(clickedId) {
+          if (clickedId === notifId) {
+            chrome.tabs.create({ url });
+            chrome.notifications.onClicked.removeListener(handler);
+          }
+        });
+      }
+    },
+  );
 }
 
 // Start polling on startup
-chrome.alarms.create('pollPRs', { periodInMinutes: POLL_INTERVAL_MINUTES });
-chrome.alarms.create('checkReminders', { periodInMinutes: 1 });
-chrome.alarms.create('urgentPRReminder', { periodInMinutes: 5 });
+chrome.alarms.create("pollPRs", { periodInMinutes: POLL_INTERVAL_MINUTES });
+chrome.alarms.create("checkReminders", { periodInMinutes: 1 });
+chrome.alarms.create("urgentPRReminder", { periodInMinutes: 5 });
