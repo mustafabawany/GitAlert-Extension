@@ -206,26 +206,6 @@ async function pollPullRequests() {
 
         prData.allPRs.push(prInfo);
 
-        // Assigned to me
-        if (reviewers.includes(username)) {
-          prData.assignedToMe.push(prInfo);
-          prData.stats.assignedToReview++;
-
-          const assignKey = `${repo}#${pr.number}`;
-          const knownAssignments = config.knownAssignments || [];
-          if (
-            !knownAssignments.includes(assignKey) &&
-            config.notificationsEnabled
-          ) {
-            knownAssignments.push(assignKey);
-            chrome.storage.local.set({ knownAssignments });
-            sendNotification(
-              "New PR Review Request",
-              `${pr.author.login} requested your review on:\n${pr.title}`,
-              pr.url,
-            );
-          }
-
           if (config.urgentNotificationsEnabled) {
             const isUrgent = prInfo.labels.some((l) =>
               (config.urgentTags || []).some(
@@ -234,7 +214,27 @@ async function pollPullRequests() {
             );
             if (isUrgent) prInfo.isUrgent = true;
           }
-        }
+
+          // Assigned to me
+          if (reviewers.includes(username)) {
+            prData.assignedToMe.push(prInfo);
+            prData.stats.assignedToReview++;
+
+            const assignKey = `${repo}#${pr.number}`;
+            const knownAssignments = config.knownAssignments || [];
+            if (
+              !knownAssignments.includes(assignKey) &&
+              config.notificationsEnabled
+            ) {
+              knownAssignments.push(assignKey);
+              chrome.storage.local.set({ knownAssignments });
+              sendNotification(
+                "New PR Review Request",
+                `${pr.author.login} requested your review on:\n${pr.title}`,
+                pr.url,
+              );
+            }
+          }
 
         // My PRs Pending
         if (pr.author.login === username && reviewers.length > 0) {
@@ -297,16 +297,9 @@ async function checkUrgentPRs() {
 
   const lastUrgentNotified = config.lastUrgentNotified || {};
   const now = Date.now();
-  const RE_NOTIFY_INTERVAL = 60 * 60 * 1000; // 1 hour buffer to prevent spam
+  const RE_NOTIFY_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
-  const urgentPRs = config.prData.assignedToMe.filter((pr) => {
-    const hasUrgentTag = pr.labels.some((l) =>
-      (config.urgentTags || []).some(
-        (tag) => l.name.toLowerCase() === tag.toLowerCase(),
-      ),
-    );
-    return hasUrgentTag;
-  });
+  const urgentPRs = config.prData.assignedToMe.filter((pr) => pr.isUrgent);
 
   let updatedNotifications = false;
 
@@ -353,7 +346,13 @@ function sendNotification(title, message, url) {
   );
 }
 
-// Start polling on startup
-chrome.alarms.create("pollPRs", { periodInMinutes: POLL_INTERVAL_MINUTES });
-chrome.alarms.create("checkReminders", { periodInMinutes: 1 });
-chrome.alarms.create("urgentPRReminder", { periodInMinutes: 5 });
+// Ensure alarms exist on startup (guards against service worker restarts)
+chrome.alarms.get("pollPRs", (alarm) => {
+  if (!alarm) chrome.alarms.create("pollPRs", { periodInMinutes: POLL_INTERVAL_MINUTES });
+});
+chrome.alarms.get("checkReminders", (alarm) => {
+  if (!alarm) chrome.alarms.create("checkReminders", { periodInMinutes: 1 });
+});
+chrome.alarms.get("urgentPRReminder", (alarm) => {
+  if (!alarm) chrome.alarms.create("urgentPRReminder", { periodInMinutes: 5 });
+});
