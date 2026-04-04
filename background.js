@@ -337,6 +337,7 @@ function sendNotification(title, message, url) {
       iconUrl: "icon.png",
       title,
       message,
+      silent: false,
       priority: 2,
     },
     (notifId) => {
