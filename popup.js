@@ -246,6 +246,7 @@ async function removeRepo(repo) {
   const repos = (config.repos || []).filter((r) => r !== repo);
   await setStorage({ repos });
   renderRepos(repos);
+  fetchPRs();
 }
 
 function renderRepos(repos) {
