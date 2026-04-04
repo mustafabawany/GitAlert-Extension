@@ -601,7 +601,6 @@ function renderDashboard(data) {
   if (!html) {
     html = `
       <div class="empty-state">
-        <div class="icon">✅</div>
         <h3>All clear!</h3>
         <p>No PRs need your attention right now.</p>
       </div>`;
