@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "GitAlert",
+  "version": "1.0.0",
+  "description": "Monitor GitHub PRs, get notified on assignments, and set review reminders.",
+  "permissions": ["storage", "alarms", "notifications"],
+  "host_permissions": ["https://api.github.com/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}
