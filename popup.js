@@ -49,11 +49,15 @@ function resetDashboard() {
 function showSetup() {
   document.getElementById("setupScreen").style.display = "";
   document.getElementById("mainApp").style.display = "none";
+  document.getElementById("refreshBtn").style.display = "none";
+  document.getElementById("settingsBtn").style.display = "none";
 }
 
 function showApp(config) {
   document.getElementById("setupScreen").style.display = "none";
   document.getElementById("mainApp").style.display = "";
+  document.getElementById("refreshBtn").style.display = "flex";
+  document.getElementById("settingsBtn").style.display = "flex";
 
   renderRepos(config.repos || []);
   renderReminders(config.reminders || []);
@@ -116,6 +120,8 @@ function bindEvents() {
       userProfile.style.display = "none";
       document.getElementById("userAvatar").src = "";
       document.getElementById("userLogin").textContent = "";
+      document.getElementById("refreshBtn").style.display = "none";
+      document.getElementById("settingsBtn").style.display = "none";
 
       // Clear the token input in case the user re-enters on the same session
       document.getElementById("tokenInput").value = "";
@@ -234,22 +240,6 @@ function bindEvents() {
 }
 
 // --- Repos ---
-
-async function addRepo() {
-  const input = document.getElementById("repoInput");
-  const repo = input.value.trim();
-  if (!repo || !repo.includes("/")) return;
-
-  const config = await getStorage(["repos"]);
-  const repos = config.repos || [];
-  if (repos.includes(repo)) return;
-
-  repos.push(repo);
-  await setStorage({ repos });
-  renderRepos(repos);
-  input.value = "";
-  fetchPRs();
-}
 
 async function removeRepo(repo) {
   const config = await getStorage(["repos"]);
@@ -564,9 +554,14 @@ async function fetchPRs() {
   chrome.runtime.sendMessage({ type: "FETCH_PRS" }, (response) => {
     document.getElementById("prLoading").style.display = "none";
 
-    if (response && response.success && response.data) {
-      renderDashboard(response.data);
-      updateStatus(new Date().toISOString());
+    if (response && response.success) {
+      if (response.data) {
+        renderDashboard(response.data);
+        updateStatus(new Date().toISOString());
+      } else {
+        // Success but no data (usually means no repos are added yet)
+        document.getElementById("statusText").textContent = "Connected";
+      }
     } else {
       document.getElementById("statusText").textContent =
         response?.error || "Error fetching data";

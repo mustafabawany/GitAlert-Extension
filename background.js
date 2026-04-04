@@ -48,12 +48,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
-  if (msg.type === "GET_DATA") {
-    chrome.storage.local.get(["prData", "lastFetch", "username"], (result) => {
-      sendResponse(result);
-    });
-    return true;
-  }
   if (msg.type === "FETCH_REPOS") {
     getConfig().then((config) => {
       githubFetch("/user/repos?per_page=100&sort=updated", config.token)
