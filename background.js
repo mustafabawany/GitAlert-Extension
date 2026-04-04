@@ -222,17 +222,17 @@ async function pollPullRequests() {
 
             const assignKey = `${repo}#${pr.number}`;
             const knownAssignments = config.knownAssignments || [];
-            if (
-              !knownAssignments.includes(assignKey) &&
-              config.notificationsEnabled
-            ) {
+            if (!knownAssignments.includes(assignKey)) {
+              // Always mark as seen so we don't spam when notifications are re-enabled
               knownAssignments.push(assignKey);
               chrome.storage.local.set({ knownAssignments });
-              sendNotification(
-                "New PR Review Request",
-                `${pr.author.login} requested your review on:\n${pr.title}`,
-                pr.url,
-              );
+              if (config.notificationsEnabled) {
+                sendNotification(
+                  "New PR Review Request",
+                  `${pr.author.login} requested your review on:\n${pr.title}`,
+                  pr.url,
+                );
+              }
             }
           }
 
@@ -271,6 +271,7 @@ async function pollPullRequests() {
 
 async function checkScheduledReminders() {
   const config = await getConfig();
+  if (!config.notificationsEnabled) return;  // respect the notifications toggle
   if (!config.reminders || config.reminders.length === 0) return;
   if (!config.prData || config.prData.stats.assignedToReview === 0) return;
 

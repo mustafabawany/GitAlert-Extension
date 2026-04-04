@@ -33,6 +33,17 @@ function setStorage(data) {
   return new Promise((resolve) => chrome.storage.local.set(data, resolve));
 }
 
+function resetDashboard() {
+  document.getElementById("statAssigned").textContent = "0";
+  document.getElementById("statMyPending").textContent = "0";
+  document.getElementById("statChanges").textContent = "0";
+  document.getElementById("statTotal").textContent = "0";
+  document.getElementById("prContent").innerHTML = "";
+  document.getElementById("prLoading").style.display = "none";
+  document.getElementById("statusText").textContent = "Not connected";
+  document.getElementById("lastUpdate").textContent = "";
+}
+
 // --- Screens ---
 
 function showSetup() {
@@ -73,35 +84,46 @@ function bindEvents() {
   // Token
   document
     .getElementById("saveTokenBtn")
-    .addEventListener("click", async () => {
-      const token = document.getElementById("tokenInput").value.trim();
-      if (!token) return;
-      await setStorage({ token });
-      const config = await getStorage([
-        "token",
-        "repos",
-        "reminders",
-        "urgentTags",
-        "notificationsEnabled",
-        "urgentNotificationsEnabled",
-        "prData",
-        "lastFetch",
-        "username",
-        "userAvatarUrl",
-      ]);
-      showApp(config);
-      fetchPRs();
-    });
+    .addEventListener("click", () => validateAndSaveToken());
+  document.getElementById("tokenInput").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") validateAndSaveToken();
+  });
 
   document
     .getElementById("disconnectBtn")
     .addEventListener("click", async () => {
+      // Full reset — matches the initial state set by onInstalled in background.js
       await setStorage({
         token: "",
         username: "",
+        userAvatarUrl: "",
+        repos: [],
+        reminders: [],
+        urgentTags: ["Important", "Urgent", "Critical"],
+        notificationsEnabled: true,
+        urgentNotificationsEnabled: true,
         prData: null,
         lastFetch: null,
+        knownAssignments: [],
+        lastUrgentNotified: {},
       });
+
+      // Reset badge count
+      chrome.action.setBadgeText({ text: "" });
+
+      // Reset profile UI (showSetup() doesn't touch these)
+      const userProfile = document.getElementById("userProfile");
+      userProfile.style.display = "none";
+      document.getElementById("userAvatar").src = "";
+      document.getElementById("userLogin").textContent = "";
+
+      // Clear the token input in case the user re-enters on the same session
+      document.getElementById("tokenInput").value = "";
+      document.getElementById("tokenError").style.display = "none";
+
+      // Reset all dashboard stat values to zero
+      resetDashboard();
+
       showSetup();
     });
 
@@ -134,12 +156,6 @@ function bindEvents() {
     document.getElementById("tab-settings").classList.add("active");
   });
 
-  // Add repo
-  document.getElementById("addRepoBtn").addEventListener("click", addRepo);
-  document.getElementById("repoInput").addEventListener("keypress", (e) => {
-    if (e.key === "Enter") addRepo();
-  });
-
   // Add reminder
   document
     .getElementById("addReminderBtn")
@@ -160,10 +176,15 @@ function bindEvents() {
     });
   });
 
-  // Discovery
+  // Discovery panel
   document
     .getElementById("discoverReposBtn")
-    .addEventListener("click", discoverRepos);
+    .addEventListener("click", openDiscoveryPanel);
+  document.getElementById("discoveryCloseBtn").addEventListener("click", closeDiscoveryPanel);
+  document.getElementById("discoveryOverlay").addEventListener("click", closeDiscoveryPanel);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeDiscoveryPanel();
+  });
   document.getElementById("repoSearchInput").addEventListener("input", (e) => {
     filterDiscoveryResults(e.target.value);
   });
@@ -271,33 +292,106 @@ function renderRepos(repos) {
 let availableRepos = [];
 let currentUrgentTags = [];
 
-async function discoverRepos() {
-  const btn = document.getElementById("discoverReposBtn");
-  const list = document.getElementById("discoveryList");
+async function validateAndSaveToken() {
+  const tokenInput = document.getElementById("tokenInput");
+  const saveBtn = document.getElementById("saveTokenBtn");
+  const errorEl = document.getElementById("tokenError");
+  const token = tokenInput.value.trim();
 
-  btn.innerHTML = `
-      <div class="spinner"></div>
-      Loading...
-    `;
+  if (!token) {
+    showTokenError("Please enter a token.");
+    return;
+  }
+
+  // Show loading state
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<span class="btn-spinner"></span> Validating...';
+  errorEl.style.display = "none";
+
+  try {
+    const res = await fetch("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github.v3+json",
+      },
+    });
+
+    if (!res.ok) {
+      const msg =
+        res.status === 401
+          ? "Invalid token — authentication failed."
+          : res.status === 403
+          ? "Token lacks required permissions (needs \`repo\` scope)."
+          : `GitHub returned an error (${res.status}).`;
+      showTokenError(msg);
+      return;
+    }
+
+    const user = await res.json();
+    await setStorage({
+      token,
+      username: user.login,
+      userAvatarUrl: user.avatar_url,
+    });
+
+    const config = await getStorage([
+      "token",
+      "repos",
+      "reminders",
+      "urgentTags",
+      "notificationsEnabled",
+      "urgentNotificationsEnabled",
+      "prData",
+      "lastFetch",
+      "username",
+      "userAvatarUrl",
+    ]);
+    showApp(config);
+    fetchPRs();
+  } catch (e) {
+    showTokenError("Network error — could not reach GitHub.");
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Connect";
+  }
+}
+
+function showTokenError(msg) {
+  const errorEl = document.getElementById("tokenError");
+  errorEl.textContent = msg;
+  errorEl.style.display = "block";
+}
+
+function openDiscoveryPanel() {
+  const overlay = document.getElementById("discoveryOverlay");
+  const panel = document.getElementById("discoveryPanel");
+  const btn = document.getElementById("discoverReposBtn");
+  const resultsEl = document.getElementById("discoveryResults");
+
+  overlay.style.display = "block";
+  panel.style.removeProperty("display"); // reveal (CSS sets display:flex)
+
+  // Reset search
+  document.getElementById("repoSearchInput").value = "";
+  resultsEl.innerHTML = '<div class="discovery-loading"><div class="spinner"></div> Loading repositories...</div>';
+
   btn.disabled = true;
 
   chrome.runtime.sendMessage({ type: "FETCH_REPOS" }, (response) => {
-    btn.innerHTML = `
-      <img src="github.png" alt="Repositories" class="icon-img" />
-      Load My Repositories
-    `;
     btn.disabled = false;
-
     if (response && response.success && response.repos) {
       availableRepos = response.repos;
-      list.style.display = "block";
       filterDiscoveryResults("");
     } else {
-      alert(
-        `Failed to load repositories: ${response?.error || "Unknown error"}`,
-      );
+      resultsEl.innerHTML = `<div class="discovery-error">⚠ Failed to load: ${response?.error || "Unknown error"}</div>`;
     }
   });
+}
+
+function closeDiscoveryPanel() {
+  document.getElementById("discoveryOverlay").style.display = "none";
+  document.getElementById("discoveryPanel").style.display = "none";
+  availableRepos = [];
 }
 
 async function filterDiscoveryResults(query) {
@@ -312,8 +406,7 @@ async function filterDiscoveryResults(query) {
     .slice(0, 50); // Limit to 50 for performance
 
   if (filtered.length === 0) {
-    container.innerHTML =
-      '<div style="padding:10px;text-align:center;font-size:12px;color:var(--text-muted);">No matching repositories found.</div>';
+    container.innerHTML = '<div class="discovery-empty">No matching repositories found.</div>';
     return;
   }
 
@@ -324,9 +417,10 @@ async function filterDiscoveryResults(query) {
       <div class="discovery-item ${isConnected ? "connected" : ""}" 
            data-repo="${repo.full_name}">
         <div class="repo-full-name">${repo.full_name}</div>
-        ${isConnected
-          ? '<span class="status-badge">Connected</span>'
-          : '<span class="add-icon">+</span>'
+        ${
+          isConnected
+            ? '<span class="status-badge">Connected</span>'
+            : '<span class="add-icon">+</span>'
         }
       </div>`;
     })
@@ -462,8 +556,9 @@ function renderToggles(config) {
 // --- Dashboard ---
 
 async function fetchPRs() {
+  // Clear stale stats immediately before new data arrives
+  resetDashboard();
   document.getElementById("prLoading").style.display = "";
-  document.getElementById("prContent").innerHTML = "";
   document.getElementById("statusText").textContent = "Fetching...";
 
   chrome.runtime.sendMessage({ type: "FETCH_PRS" }, (response) => {
@@ -531,8 +626,9 @@ function renderPRItem(pr, type) {
       const isUrgent =
         pr.isUrgent ||
         currentUrgentTags.some((t) => t.toLowerCase() === l.name.toLowerCase());
-      return `<span class="pr-label ${isUrgent ? "important" : "default"}">${l.name
-        }</span>`;
+      return `<span class="pr-label ${isUrgent ? "important" : "default"}">${
+        l.name
+      }</span>`;
     })
     .join("");
 
@@ -543,8 +639,9 @@ function renderPRItem(pr, type) {
       ${icon}
       <div class="pr-info">
         <div class="pr-title">${pr.title}</div>
-        <div class="pr-meta">${pr.repo}#${pr.number} · ${pr.author
-    } · ${timeAgo}</div>
+        <div class="pr-meta">${pr.repo}#${pr.number} · ${
+    pr.author
+  } · ${timeAgo}</div>
         ${labels ? `<div class="pr-labels">${labels}</div>` : ""}
       </div>
     </div>`;

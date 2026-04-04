@@ -43,6 +43,7 @@
         <label>Personal Access Token</label>
         <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxx" />
       </div>
+      <div id="tokenError" class="token-error" style="display: none"></div>
       <br />
       <button class="btn btn-primary" id="saveTokenBtn">Connect</button>
     </div>
@@ -90,24 +91,15 @@
 
       <!-- Repos Tab -->
       <div class="tab-content" id="tab-repos">
-        <div class="repo-discovery-actions">
-          <button class="btn btn-secondary btn-block" id="discoverReposBtn">
-            <img src="github.png" alt="Repositories" class="icon-img" />Load My
-            Repositories
+        <div class="repo-tab-header">
+          <span class="repo-tab-title">My Repositories</span>
+          <button
+            class="icon-btn"
+            id="discoverReposBtn"
+            title="Load repositories from GitHub"
+          >
+            +
           </button>
-        </div>
-        <div id="discoveryList" class="discovery-list" style="display: none">
-          <input
-            type="text"
-            id="repoSearchInput"
-            placeholder="Search your repositories..."
-          />
-          <div id="discoveryResults" class="discovery-results"></div>
-        </div>
-        <div class="separator"><span>OR ADD MANUALLY</span></div>
-        <div class="add-repo-form">
-          <input type="text" id="repoInput" placeholder="owner/repository" />
-          <button class="btn btn-primary btn-sm" id="addRepoBtn">Add</button>
         </div>
         <div class="repo-list" id="repoList"></div>
       </div>
@@ -163,7 +155,7 @@
               margin-bottom: 8px;
             "
           >
-            PRs with these labels trigger immediate & repeated (every 5 min)
+            PRs with these labels trigger immediate &amp; repeated (every 5 min)
             notifications.
           </p>
           <div class="tag-list" id="tagList"></div>
@@ -189,6 +181,33 @@
     <div class="status-bar" id="statusBar">
       <span id="statusText">Not connected</span>
       <span id="lastUpdate"></span>
+    </div>
+
+    <!-- Repository Discovery Panel (floating) -->
+    <div
+      id="discoveryOverlay"
+      class="discovery-overlay"
+      style="display: none"
+    ></div>
+    <div id="discoveryPanel" class="discovery-panel" style="display: none">
+      <div class="discovery-panel-header">
+        <span>Load Repositories from GitHub</span>
+        <button
+          class="icon-btn discovery-close-btn"
+          id="discoveryCloseBtn"
+          title="Close"
+        >
+          ✕
+        </button>
+      </div>
+      <div class="discovery-panel-search">
+        <input
+          type="text"
+          id="repoSearchInput"
+          placeholder="Search your repositories..."
+        />
+      </div>
+      <div id="discoveryResults" class="discovery-results"></div>
     </div>
 
     <script src="popup.js"></script>
