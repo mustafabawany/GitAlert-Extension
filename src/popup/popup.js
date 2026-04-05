@@ -30,6 +30,17 @@ async function init() {
   }
 
   bindEvents();
+
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.token && !changes.token.newValue) {
+      closeDiscoveryPanel();
+      UI.resetDashboard();
+      UI.showSetup();
+      document.getElementById("userProfile").style.display = "none";
+      document.getElementById("refreshBtn").style.display = "none";
+      document.getElementById("settingsBtn").style.display = "none";
+    }
+  });
 }
 
 function bindEvents() {
@@ -49,10 +60,6 @@ function bindEvents() {
         username: "",
         userAvatarUrl: "",
         repos: [],
-        reminders: [],
-        urgentTags: ["Important", "Urgent", "Critical"],
-        notificationsEnabled: true,
-        urgentNotificationsEnabled: true,
         prData: null,
         lastFetch: null,
         knownAssignments: [],
