@@ -1,8 +1,8 @@
-# 🚨 GitAlert 🚨
+# GitAlert
 
 Never miss a PR review again. GitAlert is a Chrome Extension that connects to your GitHub repositories and acts as your all-in-one PR review manager.
 
-## ✨ Features
+## Features
 
 - **Multi-Repo Tracking**: Connect unlimited repositories and monitor all your PRs from one place.
 - **PR Statistics Dashboard**: See PRs assigned to you, your PRs pending review, and change requests at a glance.
@@ -11,7 +11,7 @@ Never miss a PR review again. GitAlert is a Chrome Extension that connects to yo
 - **Urgent Tag Alerts**: PRs tagged 'Important' trigger immediate and recurring 5-minute notifications until reviewed.
 - **Secure & Private**: Your GitHub token stays in your browser's local storage. No data ever leaves your machine!
 
-## 🚀 Installation (Unpacked Extension)
+## Installation (Unpacked Extension)
 
 Since we are currently awaiting Web Store publication, you will need to load the extension as an unpacked developer extension.
 
@@ -20,14 +20,14 @@ Since we are currently awaiting Web Store publication, you will need to load the
 3. Turn on the **Developer mode** toggle in the top-right corner.
 4. Click **Load unpacked** and select the directory of the cloned repository.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - Manifest V3 Chrome Extension
 - Vanilla HTML, CSS, JavaScript (ES6 Modules)
 - Prettier & ESLint for formatting & linting
 - GitHub REST API / GraphQL API
 
-## 💖 Contributing
+## Contributing
 
 Thank you for considering contributing to GitAlert! Please see the `CONTRIBUTING.md` file for instructions on code architecture and open-source submission guidelines.
 

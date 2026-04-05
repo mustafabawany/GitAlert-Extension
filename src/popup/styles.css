@@ -1091,20 +1091,21 @@ body {
   color: #ffffff;
 }
 
-.about-footer-main {
-  margin-top: 32px;
+.about-header-actions {
+  margin-top: 16px;
   display: flex;
   justify-content: space-between;
+  padding: 0 3rem;
 }
 
-.about-footer-main a {
+.about-header-actions a {
   font-size: 11px;
   color: var(--text-muted);
   text-decoration: none;
   transition: color 0.15s;
 }
 
-.about-footer-main a:hover {
+.about-header-actions a:hover {
   color: var(--green);
 }
 
