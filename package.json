@@ -1,0 +1,25 @@
+{
+  "name": "gitalert-extension",
+  "version": "1.0.0",
+  "description": "",
+  "main": "background.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mustafabawany/GitAlert-Extension.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mustafabawany/GitAlert-Extension/issues"
+  },
+  "homepage": "https://git-alert.vercel.app/",
+  "devDependencies": {
+    "eslint": "^10.2.0",
+    "prettier": "^3.8.1"
+  }
+}
