@@ -236,7 +236,7 @@ async function validateAndSaveToken() {
     ];
     UI.showApp(config, currentUrgentTags);
     fetchPRs();
-  } catch (e) {
+  } catch {
     UI.showTokenError("Network error — could not reach GitHub.");
   } finally {
     saveBtn.disabled = false;
