@@ -3,21 +3,23 @@ import { pollPullRequests, githubFetch } from "./api.js";
 import { getConfig } from "./storage.js";
 
 // Initialize on install
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.set({
-    token: "",
-    repos: [],
-    reminders: [],
-    urgentTags: ["Important", "Urgent", "Critical"],
-    notificationsEnabled: true,
-    urgentNotificationsEnabled: true,
-    lastFetch: null,
-    prData: null,
-    username: "",
-    userAvatarUrl: "",
-    knownAssignments: [],
-    lastUrgentNotified: {},
-  });
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === "install") {
+    chrome.storage.local.set({
+      token: "",
+      repos: [],
+      reminders: [],
+      urgentTags: ["Important", "Urgent", "Critical"],
+      notificationsEnabled: true,
+      urgentNotificationsEnabled: true,
+      lastFetch: null,
+      prData: null,
+      username: "",
+      userAvatarUrl: "",
+      knownAssignments: [],
+      lastUrgentNotified: {},
+    });
+  }
 
   chrome.alarms.create("pollPRs", { periodInMinutes: POLL_INTERVAL_MINUTES });
   chrome.alarms.create("checkReminders", { periodInMinutes: 1 });
