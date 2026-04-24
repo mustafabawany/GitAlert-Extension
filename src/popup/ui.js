@@ -18,7 +18,7 @@ export function showSetup() {
   document.getElementById("settingsBtn").style.display = "none";
 }
 
-export function showApp(config, currentUrgentTags) {
+export function showApp(config, currentUrgentTags, hiddenPRs = []) {
   document.getElementById("setupScreen").style.display = "none";
   document.getElementById("mainApp").style.display = "";
   document.getElementById("refreshBtn").style.display = "flex";
@@ -38,7 +38,7 @@ export function showApp(config, currentUrgentTags) {
   }
 
   if (config.prData) {
-    renderDashboard(config.prData, currentUrgentTags);
+    renderDashboard(config.prData, currentUrgentTags, hiddenPRs);
     updateStatus(config.lastFetch);
   }
 }
@@ -117,7 +117,12 @@ export function renderToggles(config) {
   else urgentToggle.classList.add("on");
 }
 
-export function renderDashboard(data, currentUrgentTags) {
+export function renderDashboard(
+  data,
+  currentUrgentTags,
+  hiddenPRs = [],
+  showHidden = false,
+) {
   document.getElementById("statAssigned").textContent =
     data.stats.assignedToReview;
   document.getElementById("statMyPending").textContent =
@@ -126,27 +131,66 @@ export function renderDashboard(data, currentUrgentTags) {
     data.stats.changesRequested;
   document.getElementById("statTotal").textContent = data.stats.totalOpen;
 
+  const hiddenSet = new Set(hiddenPRs);
+  const isHidden = (pr) => hiddenSet.has(`${pr.repo}#${pr.number}`);
+
+  const filterPRs = (prs) => {
+    if (showHidden) return prs;
+    return prs.filter((pr) => !isHidden(pr));
+  };
+
+  const totalHidden =
+    data.assignedToMe.filter(isHidden).length +
+    data.myPRsPending.filter(isHidden).length +
+    data.changesRequested.filter(isHidden).length;
+
   const content = document.getElementById("prContent");
   let html = "";
-  if (data.assignedToMe.length > 0) {
-    html += `<div class="pr-section-title">🔍 Assigned to Review (${data.assignedToMe.length})</div>`;
-    html += data.assignedToMe
-      .map((pr) => renderPRItem(pr, "open", currentUrgentTags))
+
+  if (totalHidden > 0) {
+    html += `<div class="hidden-toggle-bar">
+      <button class="hidden-toggle-btn" id="toggleHiddenBtn">
+        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+          ${
+            showHidden
+              ? '<path d="M8 2c1.981 0 3.671.992 4.933 2.078 1.27 1.091 2.187 2.345 2.637 3.023a1.62 1.62 0 0 1 0 1.798c-.45.678-1.367 1.932-2.637 3.023C11.67 13.008 9.981 14 8 14c-1.981 0-3.671-.992-4.933-2.078C1.797 10.831.88 9.577.43 8.899a1.62 1.62 0 0 1 0-1.798c.45-.678 1.367-1.932 2.637-3.023C4.33 2.992 6.019 2 8 2ZM1.679 7.932a.12.12 0 0 0 0 .136c.411.622 1.241 1.75 2.366 2.717C5.176 11.758 6.527 12.5 8 12.5c1.473 0 2.825-.742 3.955-1.715 1.124-.967 1.954-2.096 2.366-2.717a.12.12 0 0 0 0-.136c-.412-.621-1.242-1.75-2.366-2.717C10.824 4.242 9.473 3.5 8 3.5c-1.473 0-2.824.742-3.955 1.715-1.124.967-1.954 2.096-2.366 2.717ZM8 10a2 2 0 1 1-.001-3.999A2 2 0 0 1 8 10Z"/>'
+              : '<path d="M.143 2.31a.75.75 0 0 1 1.047-.167l14.5 10.5a.75.75 0 1 1-.88 1.214l-2.248-1.628C11.346 13.19 9.792 14 8 14c-1.981 0-3.671-.992-4.933-2.078C1.797 10.831.88 9.577.43 8.899a1.618 1.618 0 0 1 0-1.798c.321-.484.867-1.21 1.575-1.942L.31 3.357A.75.75 0 0 1 .143 2.31Zm3.386 3.378a13.713 13.713 0 0 0-1.85 2.244.12.12 0 0 0 0 .136c.411.622 1.241 1.75 2.366 2.717C5.175 11.758 6.527 12.5 8 12.5c1.195 0 2.31-.488 3.29-1.191L9.063 9.695A2 2 0 0 1 6.058 7.52L3.529 5.688ZM8 3.5c-.516 0-1.017.09-1.499.251a.75.75 0 1 1-.473-1.423A6.207 6.207 0 0 1 8 2c1.981 0 3.67.992 4.933 2.078 1.27 1.091 2.187 2.345 2.637 3.023a1.62 1.62 0 0 1 0 1.798c-.11.166-.248.365-.41.587a.75.75 0 1 1-1.21-.887c.148-.201.272-.382.371-.53a.12.12 0 0 0 0-.137c-.412-.621-1.242-1.75-2.366-2.717C10.825 4.242 9.473 3.5 8 3.5Z"/>'
+          }
+        </svg>
+        ${showHidden ? "Hide" : "Show"} hidden PRs (${totalHidden})
+      </button>
+    </div>`;
+  }
+
+  const assignedFiltered = filterPRs(data.assignedToMe);
+  const pendingFiltered = filterPRs(data.myPRsPending);
+  const changesFiltered = filterPRs(data.changesRequested);
+
+  if (assignedFiltered.length > 0) {
+    html += `<div class="pr-section-title">🔍 Assigned to Review (${assignedFiltered.length})</div>`;
+    html += assignedFiltered
+      .map((pr) => renderPRItem(pr, "open", currentUrgentTags, isHidden(pr)))
       .join("");
   }
-  if (data.myPRsPending.length > 0) {
-    html += `<div class="pr-section-title">⏳ My PRs Pending Review (${data.myPRsPending.length})</div>`;
-    html += data.myPRsPending
-      .map((pr) => renderPRItem(pr, "open", currentUrgentTags))
+  if (pendingFiltered.length > 0) {
+    html += `<div class="pr-section-title">⏳ My PRs Pending Review (${pendingFiltered.length})</div>`;
+    html += pendingFiltered
+      .map((pr) => renderPRItem(pr, "open", currentUrgentTags, isHidden(pr)))
       .join("");
   }
-  if (data.changesRequested.length > 0) {
-    html += `<div class="pr-section-title">🔄 Changes Requested (${data.changesRequested.length})</div>`;
-    html += data.changesRequested
-      .map((pr) => renderPRItem(pr, "changes", currentUrgentTags))
+  if (changesFiltered.length > 0) {
+    html += `<div class="pr-section-title">🔄 Changes Requested (${changesFiltered.length})</div>`;
+    html += changesFiltered
+      .map((pr) => renderPRItem(pr, "changes", currentUrgentTags, isHidden(pr)))
       .join("");
   }
-  if (!html) {
+  if (
+    !html ||
+    (assignedFiltered.length === 0 &&
+      pendingFiltered.length === 0 &&
+      changesFiltered.length === 0 &&
+      totalHidden === 0)
+  ) {
     html = `
       <div class="empty-state">
         <h3>All clear!</h3>
@@ -156,7 +200,7 @@ export function renderDashboard(data, currentUrgentTags) {
   content.innerHTML = html;
 }
 
-function renderPRItem(pr, type, currentUrgentTags) {
+function renderPRItem(pr, type, currentUrgentTags, isHidden = false) {
   const icon =
     type === "changes"
       ? '<svg class="pr-icon changes" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354Z"/></svg>'
@@ -171,15 +215,25 @@ function renderPRItem(pr, type, currentUrgentTags) {
     })
     .join("");
 
+  const prKey = `${pr.repo}#${pr.number}`;
+  const hideBtn = isHidden
+    ? `<button class="pr-hide-btn unhide" data-pr-key="${prKey}" title="Unhide this PR">
+        <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16"><path d="M8 2c1.981 0 3.671.992 4.933 2.078 1.27 1.091 2.187 2.345 2.637 3.023a1.62 1.62 0 0 1 0 1.798c-.45.678-1.367 1.932-2.637 3.023C11.67 13.008 9.981 14 8 14c-1.981 0-3.671-.992-4.933-2.078C1.797 10.831.88 9.577.43 8.899a1.62 1.62 0 0 1 0-1.798c.45-.678 1.367-1.932 2.637-3.023C4.33 2.992 6.019 2 8 2ZM1.679 7.932a.12.12 0 0 0 0 .136c.411.622 1.241 1.75 2.366 2.717C5.176 11.758 6.527 12.5 8 12.5c1.473 0 2.825-.742 3.955-1.715 1.124-.967 1.954-2.096 2.366-2.717a.12.12 0 0 0 0-.136c-.412-.621-1.242-1.75-2.366-2.717C10.824 4.242 9.473 3.5 8 3.5c-1.473 0-2.824.742-3.955 1.715-1.124.967-1.954 2.096-2.366 2.717ZM8 10a2 2 0 1 1-.001-3.999A2 2 0 0 1 8 10Z"/></svg>
+       </button>`
+    : `<button class="pr-hide-btn" data-pr-key="${prKey}" title="Hide this PR">
+        <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16"><path d="M.143 2.31a.75.75 0 0 1 1.047-.167l14.5 10.5a.75.75 0 1 1-.88 1.214l-2.248-1.628C11.346 13.19 9.792 14 8 14c-1.981 0-3.671-.992-4.933-2.078C1.797 10.831.88 9.577.43 8.899a1.618 1.618 0 0 1 0-1.798c.321-.484.867-1.21 1.575-1.942L.31 3.357A.75.75 0 0 1 .143 2.31Zm3.386 3.378a13.713 13.713 0 0 0-1.85 2.244.12.12 0 0 0 0 .136c.411.622 1.241 1.75 2.366 2.717C5.175 11.758 6.527 12.5 8 12.5c1.195 0 2.31-.488 3.29-1.191L9.063 9.695A2 2 0 0 1 6.058 7.52L3.529 5.688ZM8 3.5c-.516 0-1.017.09-1.499.251a.75.75 0 1 1-.473-1.423A6.207 6.207 0 0 1 8 2c1.981 0 3.67.992 4.933 2.078 1.27 1.091 2.187 2.345 2.637 3.023a1.62 1.62 0 0 1 0 1.798c-.11.166-.248.365-.41.587a.75.75 0 1 1-1.21-.887c.148-.201.272-.382.371-.53a.12.12 0 0 0 0-.137c-.412-.621-1.242-1.75-2.366-2.717C10.825 4.242 9.473 3.5 8 3.5Z"/></svg>
+       </button>`;
+
   const timeAgo = getTimeAgo(pr.createdAt);
   return `
-    <div class="pr-item" data-url="${pr.url}">
+    <div class="pr-item ${isHidden ? "pr-item-hidden" : ""}" data-url="${pr.url}">
       ${icon}
       <div class="pr-info">
         <div class="pr-title">${pr.title}</div>
         <div class="pr-meta">${pr.repo}#${pr.number} · ${pr.author} · ${timeAgo}</div>
         ${labels ? `<div class="pr-labels">${labels}</div>` : ""}
       </div>
+      ${hideBtn}
     </div>`;
 }
 

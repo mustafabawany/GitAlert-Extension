@@ -3,6 +3,8 @@ import * as UI from "./ui.js";
 
 let availableRepos = [];
 let currentUrgentTags = [];
+let currentHiddenPRs = [];
+let showHidden = false;
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -18,14 +20,16 @@ async function init() {
     "lastFetch",
     "username",
     "userAvatarUrl",
+    "hiddenPRs",
   ]);
 
   currentUrgentTags = config.urgentTags || ["Important", "Urgent", "Critical"];
+  currentHiddenPRs = config.hiddenPRs || [];
 
   if (!config.token) {
     UI.showSetup();
   } else {
-    UI.showApp(config, currentUrgentTags);
+    UI.showApp(config, currentUrgentTags, currentHiddenPRs);
     if (!config.prData) fetchPRs();
   }
 
@@ -149,6 +153,30 @@ function bindEvents() {
 
   // Event Delegation
   document.getElementById("prContent").addEventListener("click", (e) => {
+    // Handle hide/unhide button clicks
+    const hideBtn = e.target.closest(".pr-hide-btn");
+    if (hideBtn) {
+      e.stopPropagation();
+      const prKey = hideBtn.dataset.prKey;
+      if (!prKey) return;
+      if (hideBtn.classList.contains("unhide")) {
+        unhidePR(prKey);
+      } else {
+        hidePR(prKey);
+      }
+      return;
+    }
+
+    // Handle toggle hidden PRs button
+    const toggleBtn = e.target.closest("#toggleHiddenBtn");
+    if (toggleBtn) {
+      e.stopPropagation();
+      showHidden = !showHidden;
+      reRenderDashboard();
+      return;
+    }
+
+    // Handle PR item click (open URL)
     const prItem = e.target.closest(".pr-item");
     if (prItem && prItem.dataset.url) window.open(prItem.dataset.url, "_blank");
   });
@@ -241,7 +269,7 @@ async function validateAndSaveToken() {
       "Urgent",
       "Critical",
     ];
-    UI.showApp(config, currentUrgentTags);
+    UI.showApp(config, currentUrgentTags, currentHiddenPRs);
     fetchPRs();
   } catch {
     UI.showTokenError("Network error — could not reach GitHub.");
@@ -260,7 +288,12 @@ function fetchPRs() {
     document.getElementById("prLoading").style.display = "none";
     if (response && response.success) {
       if (response.data) {
-        UI.renderDashboard(response.data, currentUrgentTags);
+        UI.renderDashboard(
+          response.data,
+          currentUrgentTags,
+          currentHiddenPRs,
+          showHidden,
+        );
         UI.updateStatus(new Date().toISOString());
       } else {
         document.getElementById("statusText").textContent = "Connected";
@@ -361,7 +394,13 @@ async function addTag() {
   currentUrgentTags = tags;
   await setStorage({ urgentTags: tags });
   UI.renderTags(tags);
-  if (config.prData) UI.renderDashboard(config.prData, currentUrgentTags);
+  if (config.prData)
+    UI.renderDashboard(
+      config.prData,
+      currentUrgentTags,
+      currentHiddenPRs,
+      showHidden,
+    );
   input.value = "";
 }
 
@@ -371,5 +410,36 @@ async function removeTag(tag) {
   currentUrgentTags = tags;
   await setStorage({ urgentTags: tags });
   UI.renderTags(tags);
-  if (config.prData) UI.renderDashboard(config.prData, currentUrgentTags);
+  if (config.prData)
+    UI.renderDashboard(
+      config.prData,
+      currentUrgentTags,
+      currentHiddenPRs,
+      showHidden,
+    );
+}
+
+async function hidePR(prKey) {
+  if (currentHiddenPRs.includes(prKey)) return;
+  currentHiddenPRs.push(prKey);
+  await setStorage({ hiddenPRs: currentHiddenPRs });
+  reRenderDashboard();
+}
+
+async function unhidePR(prKey) {
+  currentHiddenPRs = currentHiddenPRs.filter((k) => k !== prKey);
+  await setStorage({ hiddenPRs: currentHiddenPRs });
+  reRenderDashboard();
+}
+
+async function reRenderDashboard() {
+  const config = await getStorage(["prData"]);
+  if (config.prData) {
+    UI.renderDashboard(
+      config.prData,
+      currentUrgentTags,
+      currentHiddenPRs,
+      showHidden,
+    );
+  }
 }

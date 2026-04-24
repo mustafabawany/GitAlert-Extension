@@ -13,6 +13,7 @@ export async function getConfig() {
         "userAvatarUrl",
         "knownAssignments",
         "lastUrgentNotified",
+        "hiddenPRs",
       ],
       resolve,
     );

@@ -841,6 +841,84 @@ body {
   opacity: 1;
 }
 
+/* Hide/Unhide PR Button */
+.pr-hide-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: all 0.15s;
+  margin-top: 2px;
+}
+
+.pr-item:hover .pr-hide-btn {
+  opacity: 1;
+}
+
+.pr-hide-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.pr-hide-btn.unhide {
+  opacity: 0.6;
+  color: var(--green);
+}
+
+.pr-hide-btn.unhide:hover {
+  opacity: 1;
+  background: rgba(63, 185, 80, 0.1);
+}
+
+/* Hidden PR item */
+.pr-item.pr-item-hidden {
+  opacity: 0.45;
+}
+
+.pr-item.pr-item-hidden:hover {
+  opacity: 0.7;
+}
+
+/* Hidden PRs toggle bar */
+.hidden-toggle-bar {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+  margin-bottom: 4px;
+}
+
+.hidden-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.hidden-toggle-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: #484f58;
+}
+
+.hidden-toggle-btn svg {
+  flex-shrink: 0;
+}
+
 /* Empty state */
 .empty-state {
   padding: 40px 24px;
