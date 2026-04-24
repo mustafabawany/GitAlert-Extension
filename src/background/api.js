@@ -9,35 +9,62 @@ export class UnauthorizedError extends Error {
 }
 
 const GITHUB_API = "https://api.github.com";
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1000;
+
+async function withRetry(fn, retries = MAX_RETRIES) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      // Don't retry auth errors — they won't recover
+      if (err instanceof UnauthorizedError) throw err;
+
+      if (attempt === retries) throw err;
+
+      const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+      console.warn(
+        `Attempt ${attempt}/${retries} failed, retrying in ${delay}ms...`,
+        err.message,
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
 
 export async function githubFetch(endpoint, token) {
-  const res = await fetch(`${GITHUB_API}${endpoint}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github.v3+json",
-    },
+  return withRetry(async () => {
+    const res = await fetch(`${GITHUB_API}${endpoint}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github.v3+json",
+      },
+    });
+    if (res.status === 401) throw new UnauthorizedError();
+    if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+    return res.json();
   });
-  if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
-  return res.json();
 }
 
 export async function githubGraphQL(query, variables, token) {
-  const res = await fetch(`${GITHUB_API}/graphql`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ query, variables }),
+  return withRetry(async () => {
+    const res = await fetch(`${GITHUB_API}/graphql`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (res.status === 401) throw new UnauthorizedError();
+    if (!res.ok) {
+      const errorBody = await res.text();
+      throw new Error(`GraphQL Error: ${res.status} - ${errorBody}`);
+    }
+    const json = await res.json();
+    if (json.errors) throw new Error(json.errors[0].message);
+    return json.data;
   });
-  if (res.status === 401) throw new UnauthorizedError();
-  if (!res.ok) {
-    const errorBody = await res.text();
-    throw new Error(`GraphQL Error: ${res.status} - ${errorBody}`);
-  }
-  const json = await res.json();
-  if (json.errors) throw new Error(json.errors[0].message);
-  return json.data;
 }
 
 async function handleAuthError() {

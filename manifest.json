@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "GitAlert",
-  "version": "1.0.0",
+  "name": "Git Alert",
+  "version": "1.0.1",
   "description": "Monitor GitHub PRs, get notified on assignments, and set review reminders.",
   "permissions": ["storage", "alarms", "notifications"],
   "host_permissions": ["https://api.github.com/*"],

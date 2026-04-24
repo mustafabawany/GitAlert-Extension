@@ -32,7 +32,6 @@ export async function clearAuthSession() {
         token: "",
         username: "",
         userAvatarUrl: "",
-        repos: [],
         prData: null,
         lastFetch: null,
         knownAssignments: [],
