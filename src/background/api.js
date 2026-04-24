@@ -1,5 +1,12 @@
-import { getConfig, setConfig } from "./storage.js";
+import { getConfig, setConfig, clearAuthSession } from "./storage.js";
 import { sendNotification } from "./notifications.js";
+
+export class UnauthorizedError extends Error {
+  constructor(message = "Unauthorized") {
+    super(message);
+    this.name = "UnauthorizedError";
+  }
+}
 
 const GITHUB_API = "https://api.github.com";
 
@@ -23,6 +30,7 @@ export async function githubGraphQL(query, variables, token) {
     },
     body: JSON.stringify({ query, variables }),
   });
+  if (res.status === 401) throw new UnauthorizedError();
   if (!res.ok) {
     const errorBody = await res.text();
     throw new Error(`GraphQL Error: ${res.status} - ${errorBody}`);
@@ -30,6 +38,15 @@ export async function githubGraphQL(query, variables, token) {
   const json = await res.json();
   if (json.errors) throw new Error(json.errors[0].message);
   return json.data;
+}
+
+async function handleAuthError() {
+  console.error("Token expired or invalid. Logging out...");
+  await clearAuthSession();
+  sendNotification(
+    "Session Expired",
+    "Your GitHub token is no longer valid. Please log in again.",
+  );
 }
 
 export async function pollPullRequests() {
@@ -46,6 +63,10 @@ export async function pollPullRequests() {
       const userAvatarUrl = user.avatar_url;
       await setConfig({ username, userAvatarUrl });
     } catch (e) {
+      if (e instanceof UnauthorizedError) {
+        await handleAuthError();
+        return null;
+      }
       console.error("Failed to get user:", e);
       return null;
     }
@@ -168,6 +189,10 @@ export async function pollPullRequests() {
         }
       }
     } catch (e) {
+      if (e instanceof UnauthorizedError) {
+        await handleAuthError();
+        return null;
+      }
       console.error(`Error fetching PRs for ${repo}:`, e);
     }
   }
