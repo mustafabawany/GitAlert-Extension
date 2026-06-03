@@ -18,6 +18,7 @@ chrome.runtime.onInstalled.addListener((details) => {
       userAvatarUrl: "",
       knownAssignments: [],
       lastUrgentNotified: {},
+      hiddenPRs: [],
     });
   }
 
