@@ -67,8 +67,31 @@ export async function githubGraphQL(query, variables, token) {
   });
 }
 
-async function handleAuthError() {
-  console.error("Token expired or invalid. Logging out...");
+export async function handleAuthError(token) {
+  // Before clearing the token, verify the 401 is genuine and not a transient failure.
+  // A single network hiccup can produce a spurious 401 from a proxy or GitHub edge node.
+  try {
+    const res = await fetch(`${GITHUB_API}/user`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github.v3+json",
+      },
+    });
+    if (res.ok) {
+      console.warn("Transient 401 detected — token is still valid, skipping logout.");
+      return;
+    }
+    if (res.status !== 401) {
+      console.warn(`Token verification returned ${res.status} — skipping logout.`);
+      return;
+    }
+  } catch {
+    // Network error during verification — cannot confirm expiry, do not logout.
+    console.warn("Could not verify token (network error) — skipping logout.");
+    return;
+  }
+
+  console.error("Token confirmed expired or invalid. Logging out...");
   await clearAuthSession();
   sendNotification(
     "Session Expired",
@@ -91,7 +114,7 @@ export async function pollPullRequests() {
       await setConfig({ username, userAvatarUrl });
     } catch (e) {
       if (e instanceof UnauthorizedError) {
-        await handleAuthError();
+        await handleAuthError(token);
         return null;
       }
       console.error("Failed to get user:", e);
@@ -217,7 +240,7 @@ export async function pollPullRequests() {
       }
     } catch (e) {
       if (e instanceof UnauthorizedError) {
-        await handleAuthError();
+        await handleAuthError(token);
         return null;
       }
       console.error(`Error fetching PRs for ${repo}:`, e);

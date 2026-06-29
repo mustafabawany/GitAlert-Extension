@@ -1,5 +1,5 @@
 import { POLL_INTERVAL_MINUTES, handleAlarm, setupAlarms } from "./alarms.js";
-import { pollPullRequests, githubFetch } from "./api.js";
+import { pollPullRequests, githubFetch, UnauthorizedError, handleAuthError } from "./api.js";
 import { getConfig } from "./storage.js";
 
 // Initialize on install
@@ -42,7 +42,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     getConfig().then((config) => {
       githubFetch("/user/repos?per_page=100&sort=updated", config.token)
         .then((repos) => sendResponse({ success: true, repos }))
-        .catch((err) => sendResponse({ success: false, error: err.message }));
+        .catch(async (err) => {
+          if (err instanceof UnauthorizedError) {
+            await handleAuthError(config.token);
+            sendResponse({ success: false, error: "Session expired. Please log in again." });
+          } else {
+            sendResponse({ success: false, error: err.message });
+          }
+        });
     });
     return true;
   }
