@@ -198,7 +198,7 @@ export async function pollPullRequests() {
         }
 
         // My PRs Pending
-        if (pr.author.login === username && reviewers.length > 0) {
+        if (pr.author.login === username) {
           prData.myPRsPending.push(prInfo);
           prData.stats.myPRsPending++;
         }
