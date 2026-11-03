@@ -197,13 +197,7 @@ export async function pollPullRequests() {
           }
         }
 
-        // My PRs Pending
-        if (pr.author.login === username && reviewers.length > 0) {
-          prData.myPRsPending.push(prInfo);
-          prData.stats.myPRsPending++;
-        }
-
-        // Changes Requested on my PRs
+        // My PRs: Changes Requested takes priority, otherwise Pending
         if (pr.author.login === username) {
           const latestReviews = {};
           pr.latestReviews.nodes.forEach((r) => {
@@ -212,6 +206,9 @@ export async function pollPullRequests() {
           if (Object.values(latestReviews).includes("CHANGES_REQUESTED")) {
             prData.changesRequested.push(prInfo);
             prData.stats.changesRequested++;
+          } else {
+            prData.myPRsPending.push(prInfo);
+            prData.stats.myPRsPending++;
           }
         }
       }
